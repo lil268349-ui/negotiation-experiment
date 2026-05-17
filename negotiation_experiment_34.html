@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>谈判行为研究实验</title>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --border: #e4e2da;
+    --border-strong: #c8c5bb;
+    --text: #1a1917;
+    --text-muted: #6b6860;
+    --text-hint: #a09d96;
+    --accent: #1a1917;
+    --accent-light: #f0ede6;
+    --bubble-buyer: #f0ede6;
+    --bubble-seller: #1a1917;
+    --bubble-seller-text: #ffffff;
+    --danger: #c0392b;
+    --success: #1a6b3a;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem 4rem; }
+  .container { width: 100%; max-width: 560px; }
+
+  .progress-wrap { margin-bottom: 2rem; }
+  .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-hint); margin-bottom: 6px; }
+  .progress-track { height: 2px; background: var(--border); border-radius: 2px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; margin-bottom: 1rem; }
+  .card-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-hint); margin-bottom: 1rem; }
+  h2 { font-size: 18px; font-weight: 600; line-height: 1.4; margin-bottom: 0.75rem; }
+  h3 { font-size: 15px; font-weight: 600; margin-bottom: 0.5rem; }
+  p { font-size: 14px; line-height: 1.8; color: var(--text-muted); margin-bottom: 0.75rem; }
+  p:last-child { margin-bottom: 0; }
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+  .btn { display: block; width: 100%; padding: 13px 24px; font-family: var(--font); font-size: 14px; font-weight: 500; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s ease; text-align: center; border: 1px solid transparent; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-download { background: var(--success); color: #fff; border-color: var(--success); }
+
+  .info-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .info-badge { flex: 1; background: var(--accent-light); border-radius: var(--radius-sm); padding: 12px 14px; text-align: center; }
+  .info-badge .label { font-size: 11px; color: var(--text-hint); display: block; margin-bottom: 2px; }
+  .info-badge .value { font-size: 18px; font-weight: 600; color: var(--text); }
+  .info-badge.private { border: 1px dashed var(--border-strong); }
+
+  .consent-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem 1.25rem; margin: 1rem 0; max-height: 200px; overflow-y: auto; font-size: 13px; line-height: 1.8; color: var(--text-muted); }
+  .checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin: 1rem 0; font-size: 14px; line-height: 1.6; cursor: pointer; }
+  .checkbox-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+
+  /* Matching */
+  .matching-screen { display: flex; flex-direction: column; align-items: center; padding: 2.5rem 1.75rem; text-align: center; }
+  .matching-spinner { width: 48px; height: 48px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 0.9s linear infinite; margin-bottom: 1.25rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .matching-title { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 0.4rem; }
+  .matching-sub { font-size: 13px; color: var(--text-hint); }
+  .matching-dots::after { content: ''; animation: dots 1.5s steps(4,end) infinite; }
+  @keyframes dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} 100%{content:''} }
+
+  /* Role assignment card */
+  .role-card {
+    display: none;
+    flex-direction: column; align-items: center;
+    padding: 2rem 1.75rem; text-align: center;
+  }
+  .role-card.show { display: flex; }
+  .role-slot {
+    width: 120px; height: 64px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: var(--text-hint);
+    margin: 1rem 0;
+    background: var(--bg);
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .role-slot.locked { border-color: var(--accent); color: var(--accent); background: var(--accent-light); animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes popIn { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+  .role-label { font-size: 13px; color: var(--text-hint); margin-bottom: 0.25rem; }
+  .role-confirmed { font-size: 14px; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.6; }
+  .role-confirmed strong { color: var(--text); }
+
+  /* Chat */
+  .chat-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .chat-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+  .chat-name { font-size: 14px; font-weight: 500; }
+  .chat-sub { font-size: 12px; color: var(--text-hint); }
+  .online-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 4px; vertical-align: middle; }
+  .chat-product { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .product-img { width: 48px; height: 48px; border-radius: 6px; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .product-name { font-size: 13px; font-weight: 500; }
+  .product-price { font-size: 13px; color: var(--danger); font-weight: 600; }
+  .chat-messages { min-height: 260px; max-height: 360px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
+  .msg.buyer { align-self: flex-start; }
+  .msg.seller { align-self: flex-end; flex-direction: row-reverse; }
+  .msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+  .msg.seller .msg-avatar { background: var(--accent); color: #fff; }
+  .msg-bubble { padding: 9px 13px; border-radius: 14px; font-size: 14px; line-height: 1.6; }
+  .msg.buyer .msg-bubble { background: var(--bubble-buyer); color: var(--text); border-bottom-left-radius: 4px; }
+  .msg.seller .msg-bubble { background: var(--bubble-seller); color: var(--bubble-seller-text); border-bottom-right-radius: 4px; }
+  .msg-time { font-size: 11px; color: var(--text-hint); margin-top: 4px; }
+  .msg.seller .msg-time { text-align: right; }
+  .typing-bubble { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: var(--bubble-buyer); border-radius: 14px; border-bottom-left-radius: 4px; }
+  .typing-bubble span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-hint); animation: bounce 1.2s infinite; }
+  .typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+  .chat-input-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .price-hint { font-size: 12px; color: var(--text-hint); }
+  .price-hint strong { color: var(--text-muted); }
+  .input-row { display: flex; gap: 8px; align-items: center; }
+  .price-prefix { font-size: 14px; color: var(--text-muted); }
+  .price-input { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 16px; font-weight: 500; outline: none; transition: border-color 0.15s; -moz-appearance: textfield; }
+  .price-input::-webkit-outer-spin-button, .price-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .price-input:focus { border-color: var(--accent); }
+  .price-input:disabled { background: var(--bg); color: var(--text-hint); cursor: not-allowed; }
+  .send-btn { padding: 10px 18px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-family: var(--font); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; white-space: nowrap; }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .error-msg { font-size: 12px; color: var(--danger); display: none; }
+
+  /* Survey */
+  .sq-counter { font-size: 12px; color: var(--text-hint); margin-bottom: 1.25rem; }
+  .sq-counter strong { color: var(--text-muted); }
+  .sq-instruction { font-size: 13px; color: var(--text-hint); margin-bottom: 1.25rem; line-height: 1.7; white-space: pre-line; }
+  .sq-question { font-size: 15px; font-weight: 500; line-height: 1.7; color: var(--text); margin-bottom: 1.5rem; }
+  .likert-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .likert-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-hint); padding: 0 2px; }
+  .likert-options { display: flex; justify-content: space-between; gap: 4px; }
+  .likert-btn { flex: 1; height: 40px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 13px; color: var(--text-muted); transition: all 0.12s; font-family: var(--font); }
+  .likert-btn:hover { border-color: var(--border-strong); background: var(--accent-light); }
+  .likert-btn.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .semantic-cols { display: flex; flex-direction: column; gap: 16px; }
+  .semantic-poles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .semantic-pole {
+    padding: 10px 14px; border-radius: var(--radius-sm);
+    font-size: 12px; line-height: 1.5; color: var(--text-muted);
+    border: 1px solid var(--border); background: var(--bg);
+  }
+  .semantic-pole.left { border-left: 3px solid var(--border-strong); }
+  .semantic-pole.right { border-right: 3px solid var(--border-strong); text-align: right; }
+  .semantic-options { display: flex; gap: 6px; }
+  .semantic-btn { flex: 1; height: 42px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 14px; color: var(--text-muted); transition: all 0.12s; font-family: var(--font); font-weight: 500; }
+  .semantic-btn:hover { border-color: var(--border-strong); background: var(--accent-light); }
+  .semantic-btn.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .semantic-scale-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-hint); padding: 0 2px; }
+  .radio-options { display: flex; flex-direction: column; gap: 8px; }
+  .radio-opt { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; transition: all 0.12s; user-select: none; }
+  .radio-opt:hover { border-color: var(--border-strong); background: var(--accent-light); }
+  .radio-opt input { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+  .radio-opt.selected { border-color: var(--accent); background: var(--accent-light); }
+  .text-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 14px; outline: none; transition: border-color 0.15s; resize: vertical; }
+  .text-input:focus { border-color: var(--accent); }
+  .number-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 14px; outline: none; transition: border-color 0.15s; }
+  .number-input:focus { border-color: var(--accent); }
+  .sq-next { display: none; margin-top: 1.5rem; }
+  .sq-next.show { display: block; }
+
+  /* Accept / End action buttons */
+  .action-row { display: flex; gap: 8px; margin-top: 2px; }
+  .action-btn { flex: 1; padding: 9px 12px; font-family: var(--font); font-size: 13px; font-weight: 500; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); }
+  .action-btn:hover { border-color: var(--border-strong); }
+  .accept-btn:hover { background: #f0fdf4; border-color: #86efac; color: #166534; }
+  .end-btn:hover { background: #fff5f5; border-color: #fca5a5; color: #991b1b; }
+
+  /* End */
+  .result-card { text-align: center; padding: 2rem 1.75rem; }
+  .result-price { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 0.25rem; }
+  .result-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 1.5rem; }
+  .reward-badge { display: inline-block; background: var(--accent-light); border: 1px solid var(--border); border-radius: 20px; padding: 8px 20px; font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 1.5rem; }
+  .data-preview { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; font-size: 12px; font-family: monospace; color: var(--text-muted); white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; margin: 1rem 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="progress-wrap">
+    <div class="progress-meta">
+      <span id="progress-label">知情同意</span>
+      <span id="progress-step">1 / 8</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill" style="width:12.5%"></div>
+    </div>
+  </div>
+
+  <!-- PAGE: consent -->
+  <div class="page active" id="page-consent">
+    <div class="card">
+      <div class="card-label">参与者须知</div>
+      <h2>知情同意书</h2>
+      <p>欢迎参加本研究。请仔细阅读以下内容，确认您理解并同意参与。</p>
+      <div class="consent-box">
+        <strong>研究目的</strong><br>本研究旨在了解谈判过程中的决策行为，您的参与将帮助我们更好地理解谈判心理。<br><br>
+        <strong>参与内容</strong><br>您将参与一个约 18–21 分钟的模拟谈判任务，并填写若干问卷题目。<br><br>
+        <strong>保密性</strong><br>您的所有回答将严格匿名处理，仅用于学术研究目的。<br><br>
+        <strong>自愿性</strong><br>参与本研究完全自愿，您可以在任何时候退出，不会受到任何影响。<br><br>
+        <strong>报酬</strong><br>根据您在谈判任务中的表现，您将获得相应的额外奖励（最高 6 元）。
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="consent-check">
+        <span>我已阅读并理解上述内容，自愿参与本研究，并同意完成全部任务。</span>
+      </label>
+      <button class="btn btn-primary" id="consent-btn">同意并继续</button>
+    </div>
+  </div>
+
+  <!-- PAGE: instructions -->
+  <div class="page" id="page-instructions">
+    <div class="card">
+      <div class="card-label">任务说明</div>
+      <h2>欢迎参加谈判实验</h2>
+      <p>在本任务中，您将参与一个模拟的二手商品交易谈判。</p>
+      <p>系统将随机为您分配交易角色，并在分配完成后告知您具体的任务要求与规则。</p>
+      <hr class="divider">
+      <p style="font-size:13px;color:var(--text-hint);">请点击下方按钮进入平台，等待系统为您匹配交易对象并分配角色。</p>
+      <button class="btn btn-primary" id="enter-btn" onclick="enterPlatform()">进入平台</button>
+    </div>
+  </div>
+
+  <!-- PAGE: matching -->
+  <div class="page" id="page-matching">
+    <div class="card">
+      <!-- Step 1: matching spinner -->
+      <div class="matching-screen" id="matching-screen">
+        <div class="matching-spinner"></div>
+        <div class="matching-title">正在匹配参与者<span class="matching-dots"></span></div>
+        <div class="matching-sub" id="matching-sub">平台正在寻找其他参与者，请稍候</div>
+      </div>
+      <!-- Step 2: role assignment -->
+      <div class="role-card" id="role-card">
+        <div style="font-size:13px;color:var(--text-hint);margin-bottom:1.5rem;">匹配成功！正在为您分配角色</div>
+        <div class="role-label">您的角色</div>
+        <div class="role-slot" id="role-slot">?</div>
+        <!-- Task briefing revealed after role lock -->
+        <div id="role-briefing" style="display:none;width:100%;margin-top:1.25rem;">
+          <hr class="divider">
+          <p style="font-size:14px;color:var(--text-muted);margin-bottom:1rem;">
+            您将在模拟的二手交易平台上，以<strong>卖家</strong>身份与买家进行价格谈判。
+          </p>
+          <div class="info-row">
+            <div class="info-badge"><span class="label">商品挂牌价</span><span class="value">¥1,000</span></div>
+            <div class="info-badge private"><span class="label">您的底价（私密）</span><span class="value">¥700</span></div>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:0.75rem;">
+            底价仅您自己知道。低于 <strong>¥700</strong> 您可以拒绝出售，请尽力争取更高的成交价。
+          </p>
+          <div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:0.25rem;">
+            <div style="font-size:12px;font-weight:600;color:var(--text-hint);margin-bottom:4px;">奖励规则</div>
+            <div style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+              完成全部流程获得基础奖励 <strong>3 元</strong>。<br>
+              最终成交价每高于 ¥700 一百元，额外获得 <strong>1 元</strong>（上限 3 元）。<br>
+              <span style="color:var(--danger);">若谈判未能达成交易（无论哪方结束），仅获得基础奖励，无绩效奖励。</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="role-enter-btn" style="display:none;margin-top:1.25rem;" onclick="enterChat()">进入谈判</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: negotiation -->
+  <div class="page" id="page-negotiation">
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="chat-header">
+        <div class="chat-avatar">买</div>
+        <div>
+          <div class="chat-name">买家_匿名用户</div>
+          <div class="chat-sub"><span class="online-dot"></span>在线</div>
+        </div>
+      </div>
+      <div class="chat-product">
+        <div class="product-img">📷</div>
+        <div>
+          <div class="product-name">二手单反相机（成色良好）</div>
+          <div class="product-price">¥1,000</div>
+        </div>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-area" id="chat-input-area">
+        <!-- Range hint: hidden until buyer makes offer -->
+        <div class="price-hint" id="price-hint" style="display:none;"></div>
+        <!-- Counter-offer row -->
+        <div class="input-row">
+          <span class="price-prefix">¥</span>
+          <input type="number" class="price-input" id="price-input" placeholder="输入还价金额" max="9999" min="0" onkeydown="if(event.key==='-'||event.key==='e'||event.key==='E')event.preventDefault()" disabled>
+          <button class="send-btn" id="send-btn" onclick="sendSellerMsg()" disabled>还价</button>
+        </div>
+        <div class="error-msg" id="error-msg"></div>
+        <!-- Accept / End buttons -->
+        <div class="action-row" id="action-row" style="display:none;">
+          <button class="action-btn accept-btn" id="accept-btn" onclick="sellerAccept()">✓ 接受报价</button>
+          <button class="action-btn end-btn" id="end-btn" onclick="sellerEnd()">✕ 结束谈判</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: survey (one question at a time) -->
+  <div class="page" id="page-survey">
+    <div class="card">
+      <div class="sq-counter">第 <strong id="sq-cur">1</strong> 题</div>
+      <div class="sq-instruction" id="sq-inst"></div>
+      <div class="sq-question" id="sq-q"></div>
+      <div id="sq-widget"></div>
+      <button class="btn btn-primary sq-next" id="sq-next" onclick="sqNext()">下一题</button>
+    </div>
+  </div>
+
+  <!-- PAGE: end -->
+  <div class="page" id="page-end">
+    <div class="card result-card">
+      <div style="font-size:40px;margin-bottom:1rem">🎉</div>
+      <h2>谈判结束</h2>
+      <div class="result-price" id="end-price">¥—</div>
+      <div class="result-sub">最终成交价</div>
+      <div class="reward-badge" id="end-reward">额外奖励：计算中…</div>
+      <p>感谢您参与本次实验！研究关注谈判过程中的决策行为。您的所有回答严格保密，仅用于学术研究目的。</p>
+    </div>
+    <div class="card">
+      <div class="card-label">实验数据</div>
+      <p>请将以下数据提交给研究人员，或点击下载。</p>
+      <div class="data-preview" id="data-preview"></div>
+      <button class="btn btn-download" onclick="downloadData()">⬇ 下载数据文件（.json）</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────
+const S = {
+  condition: Math.floor(Math.random() * 4) + 1,  // 1–4，严格均等概率
+  r1: null, r2: null, r3: null,
+  phase: 0,
+  finalPrice: null,
+  answers: {},
+  timestamps: { start: Date.now() }
+};
+// Condition 1: short delay 3-5s. Conditions 2/3/4: 30s delay
+const DELAY_MS = { 1: Math.round(3000 + Math.random()*2000), 2: 30000, 3: 30000, 4: 30000 };
+const COND_LABEL = { 1:'无延迟无解释', 2:'有延迟无解释', 3:'有延迟外部解释', 4:'有延迟内部解释' };
+
+// ─── Pages ────────────────────────────────────────────────────────────────
+const PAGES = ['consent','instructions','matching','negotiation','survey','end'];
+const PLABELS = ['知情同意','实验说明','匹配中','谈判任务','问卷','实验结束'];
+let curPage = 0;
+
+function goTo(name) {
+  document.getElementById('page-' + PAGES[curPage]).classList.remove('active');
+  curPage = PAGES.indexOf(name);
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('progress-label').textContent = PLABELS[curPage];
+  const stepMap = { consent:1, instructions:2, matching:3, negotiation:3, survey:4, end:8 };
+  const s = stepMap[name] || curPage + 1;
+  document.getElementById('progress-step').textContent = s + ' / 8';
+  document.getElementById('progress-fill').style.width = (s/8*100) + '%';
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+// ─── Matching screen ──────────────────────────────────────────────────────
+function enterPlatform() {
+  goTo('matching');
+  const sub = document.getElementById('matching-sub');
+  const count = Math.floor(Math.random() * 8) + 3; // 3–10
+  const msgs = [
+    '平台正在寻找其他参与者，请稍候',
+    `已找到 ${count} 位在线参与者，正在验证连接`,
+    '参与者验证通过，正在随机分配角色'
+  ];
+  let mi = 0;
+  const iv = setInterval(() => {
+    mi++;
+    if (mi < msgs.length) {
+      sub.textContent = msgs[mi];
+    } else {
+      clearInterval(iv);
+      setTimeout(showRoleAssignment, 600);
+    }
+  }, 1900);
+}
+
+function showRoleAssignment() {
+  document.getElementById('matching-screen').style.display = 'none';
+  document.getElementById('role-card').classList.add('show');
+
+  const roleSlot = document.getElementById('role-slot');
+  const roles = ['买家','卖家'];
+  let ci = 0;
+  // 先快速翻牌，再逐渐减速，最终定格卖家
+  const intervals = [200, 200, 200, 300, 300, 400, 500, 600, 800];
+  let step = 0;
+
+  function tick() {
+    roleSlot.textContent = roles[ci % 2];
+    ci++;
+    step++;
+    if (step < intervals.length) {
+      setTimeout(tick, intervals[step]);
+    } else {
+      // 定格在卖家
+      roleSlot.textContent = '卖家';
+      roleSlot.classList.add('locked');
+      setTimeout(() => {
+        document.getElementById('role-briefing').style.display = 'block';
+        document.getElementById('role-enter-btn').style.display = 'block';
+      }, 600);
+    }
+  }
+  setTimeout(tick, intervals[0]);
+}
+
+function enterChat() {
+  goTo('negotiation');
+  S.timestamps.negotiationStart = Date.now();
+  setHint(1); // initialize first hint
+  setTimeout(triggerBuyer1, 1500 + Math.random()*1500);
+}
+
+// ─── Hint & validation helpers ────────────────────────────────────────────
+// Each round has a [min, max] range for valid seller bids
+// Phase 1: buyer said 700, ceiling is 1000 → seller must be (700, 1000]
+// Phase 3: buyer said 750, ceiling is S.r1 → seller must be (750, r1)
+// Phase 5: buyer said 800, ceiling is S.r2 → seller must be (800, r2)
+function getRangeDef(phase) {
+  if (phase === 1) return { lo: 700, hi: 1000, loLabel:'买家报价 ¥700', hiLabel:'挂牌价 ¥1,000' };
+  if (phase === 3) return { lo: 750, hi: S.r1,  loLabel:'买家还价 ¥750', hiLabel:`您上轮报价 ¥${S.r1}` };
+  if (phase === 5) return { lo: 800, hi: 1000,  loLabel:'买家还价 ¥800', hiLabel:'挂牌价 ¥1,000' };
+  return null;
+}
+
+function setHint(phase) {
+  const r = getRangeDef(phase);
+  if (!r) return;
+  const hint = document.getElementById('price-hint');
+  hint.innerHTML = `报价需高于${r.loLabel}，且不超过${r.hiLabel}`;
+}
+
+function validateBid(val, phase) {
+  const r = getRangeDef(phase);
+  if (!r) return { ok: false, msg: '当前不可报价' };
+  if (isNaN(val) || val <= r.lo) return { ok: false, msg: `报价需高于${r.loLabel}（¥${r.lo}）` };
+  if (val > r.hi) return { ok: false, msg: `报价不能超过${r.hiLabel}（¥${r.hi}）` };
+  return { ok: true };
+}
+
+// ─── Chat helpers ─────────────────────────────────────────────────────────
+function addMsg(side, text) {
+  const box = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.className = 'msg ' + side;
+  const now = new Date();
+  const t = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  d.innerHTML = `<div class="msg-avatar">${side==='buyer'?'买':'我'}</div><div><div class="msg-bubble">${text}</div><div class="msg-time">${t}</div></div>`;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+function showTyping() {
+  const box = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.id = 'typing'; d.className = 'msg buyer';
+  d.innerHTML = '<div class="msg-avatar">买</div><div class="typing-bubble"><span></span><span></span><span></span></div>';
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+function hideTyping() { const e = document.getElementById('typing'); if(e) e.remove(); }
+function enableInput(phase) {
+  const hint = document.getElementById('price-hint');
+  setHint(phase);
+  hint.style.display = 'block';
+
+  const inp = document.getElementById('price-input');
+  inp.removeAttribute('min');
+  inp.value = '';
+  inp.disabled = false;
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('error-msg').style.display = 'none';
+  document.getElementById('action-row').style.display = 'flex';
+  inp.focus();
+}
+function disableInput() {
+  document.getElementById('price-input').disabled = true;
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('action-row').style.display = 'none';
+  document.getElementById('price-hint').style.display = 'none';
+}
+
+// Seller accepts buyer's current offer
+function sellerAccept() {
+  if (S.phase !== 1 && S.phase !== 3 && S.phase !== 5) return;
+  disableInput();
+  // Determine which price seller is accepting
+  const acceptedPrice = S.phase === 1 ? 700 : S.phase === 3 ? 750 : 800;
+  S.finalPrice = acceptedPrice;
+  if (S.phase === 1) { S.r1 = acceptedPrice; S.timestamps.r1 = Date.now(); }
+  else if (S.phase === 3) { S.r2 = acceptedPrice; S.timestamps.r2 = Date.now(); }
+  else if (S.phase === 5) { S.r3 = acceptedPrice; S.timestamps.r3 = Date.now(); }
+  addMsg('seller', `好的，就按您说的 ${acceptedPrice} 元，成交！`);
+  S.phase = 6;
+  setTimeout(() => showAcceptance(acceptedPrice), 1000);
+}
+
+// Seller ends negotiation without deal
+function sellerEnd() {
+  if (S.phase !== 1 && S.phase !== 3 && S.phase !== 5) return;
+  disableInput();
+  S.finalPrice = null;
+  S.negotiationEnded = true;
+  addMsg('seller', '抱歉，这个价格我无法接受，本次就先到这里吧。');
+  S.phase = 6;
+  setTimeout(() => showNoDeal(), 1200);
+}
+
+function showNoDeal() {
+  const box = document.getElementById('chat-messages');
+  const sys = document.createElement('div');
+  sys.style.cssText = 'align-self:center;background:#fff5f5;border:1px solid #fca5a5;border-radius:20px;padding:6px 16px;font-size:13px;color:#991b1b;margin:4px 0;font-weight:500;';
+  sys.textContent = '✕ 谈判已结束，未达成交易';
+  box.appendChild(sys);
+  box.scrollTop = box.scrollHeight;
+
+  document.getElementById('chat-input-area').style.display = 'none';
+  const nextWrap = document.createElement('div');
+  nextWrap.style.cssText = 'padding:12px 16px;border-top:1px solid var(--border);';
+  nextWrap.innerHTML = '<button class="btn btn-primary" onclick="startSurvey()" style="margin:0;">继续完成问卷</button>';
+  document.getElementById('page-negotiation').querySelector('.card').appendChild(nextWrap);
+}
+
+// ─── Negotiation flow ─────────────────────────────────────────────────────
+function triggerBuyer1() {
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    addMsg('buyer', '你好，这台相机我很感兴趣，700元能接受吗？');
+    S.phase = 1; enableInput(1);
+  }, 1800 + Math.random()*1200);
+}
+
+function sendSellerMsg() {
+  const inp = document.getElementById('price-input');
+  const val = parseInt(inp.value);
+  const errEl = document.getElementById('error-msg');
+
+  const check = validateBid(val, S.phase);
+  if (!check.ok) {
+    errEl.textContent = check.msg;
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  disableInput();
+
+  if (S.phase === 1) {
+    S.r1 = val; S.timestamps.r1 = Date.now();
+    addMsg('seller', `我报 ${val} 元，这台相机成色很好，希望您考虑一下。`);
+
+    // 若 R1 ≤ 750（下一轮买家报价），买家直接接受
+    if (val <= 750) {
+      S.finalPrice = val;
+      S.phase = 6;
+      setTimeout(() => {
+        showTyping();
+        setTimeout(() => {
+          hideTyping();
+          addMsg('buyer', '好的，成交！');
+          setTimeout(() => showAcceptance(val), 800);
+        }, 1500 + Math.random()*1000);
+      }, 800);
+      return;
+    }
+
+    S.phase = 2;
+    setTimeout(() => {
+      showTyping();
+      setTimeout(() => {
+        hideTyping();
+        addMsg('buyer', '我最多能到750，真的尽力了。');
+        S.phase = 3; enableInput(3);
+      }, 1600 + Math.random()*1000);
+    }, 1200);
+
+  } else if (S.phase === 3) {
+    S.r2 = val; S.timestamps.r2 = Date.now();
+    addMsg('seller', `${val}元已经是我能接受的范围了，您看怎么样？`);
+
+    // 若 R2 ≤ 800（不高于下一轮买家报价），买家直接接受
+    if (val <= 800) {
+      S.finalPrice = val;
+      S.phase = 6;
+      setTimeout(() => {
+        showTyping();
+        setTimeout(() => {
+          hideTyping();
+          addMsg('buyer', '好的，成交！');
+          setTimeout(() => showAcceptance(val), 800);
+        }, 1500 + Math.random()*1000);
+      }, 800);
+      return;
+    }
+
+    S.phase = 4;
+    S.timestamps.delayStart = Date.now();
+    const delayMs = DELAY_MS[S.condition];
+    if (S.condition === 3) addSystemNotice('对方网络不稳定，请稍等。');
+    showTyping();
+    if (S.condition === 4) {
+      // 第30秒先发"我考虑了一下"，再停顿后发报价
+      setTimeout(() => {
+        hideTyping();
+        addMsg('buyer', '我刚刚考虑了一下。');
+        showTyping();
+      }, delayMs);
+    }
+    setTimeout(() => {
+      hideTyping();
+      S.timestamps.delayEnd = Date.now();
+      addMsg('buyer', '好吧，800是我最多能出的了，你看行吗？');
+      S.phase = 5; enableInput(5);
+    }, S.condition === 4 ? delayMs + 1500 : delayMs);
+
+  } else if (S.phase === 5) {
+    S.r3 = val; S.finalPrice = val; S.timestamps.r3 = Date.now();
+    addMsg('seller', `那就 ${val} 元吧，希望您用得开心！`);
+    S.phase = 6;
+    disableInput();
+    // 停顿后买家打字，再显示接受
+    setTimeout(() => {
+      showTyping();
+      setTimeout(() => {
+        hideTyping();
+        addMsg('buyer', '好的，成交！');
+        setTimeout(() => showAcceptance(val), 800);
+      }, 1800 + Math.random()*1200);
+    }, 600);
+  }
+}
+
+// System notice (condition 3)
+function addSystemNotice(text) {
+  const box = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.style.cssText = 'align-self:center;background:var(--accent-light);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;color:var(--text-hint);margin:2px 0;';
+  d.textContent = '📶 ' + text;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+// Unconditional acceptance overlay inside chat
+function showAcceptance(price) {
+  const box = document.getElementById('chat-messages');
+  const sys = document.createElement('div');
+  sys.style.cssText = 'align-self:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:6px 16px;font-size:13px;color:#166534;margin:4px 0;font-weight:500;';
+  sys.textContent = '✓ 买家选择接受你的报价，本次谈判已结束';
+  box.appendChild(sys);
+  const banner = document.createElement('div');
+  banner.style.cssText = 'align-self:stretch;background:var(--accent-light);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:4px 0;text-align:center;';
+  banner.innerHTML = `<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">最终成交价</div><div style="font-size:28px;font-weight:700;color:var(--text);">¥${price}</div>`;
+  box.appendChild(banner);
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('chat-input-area').style.display = 'none';
+  const nextWrap = document.createElement('div');
+  nextWrap.style.cssText = 'padding:12px 16px;border-top:1px solid var(--border);';
+  nextWrap.innerHTML = '<button class="btn btn-primary" onclick="startSurvey()" style="margin:0;">继续完成问卷</button>';
+  document.getElementById('page-negotiation').querySelector('.card').appendChild(nextWrap);
+}
+
+// ─── Survey definitions ───────────────────────────────────────────────────
+// No scale names shown to participants
+const QS = [
+  // 操纵检验
+  { id:'mc_wait',
+    inst:'请根据您在谈判中的实际感受作答，没有对错之分。',
+    q:'刚才对方最后一次回复您之前，您大概等待了多长时间？（请以秒为单位填写）',
+    type:'number', placeholder:'请输入秒数', min:0, max:300 },
+
+  // 意图归因
+  { id:'att0', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我认为对方停顿是因为他在认真考虑是否接受我的价格。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'att1', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我认为对方停顿是一种谈判策略，目的是让我感到焦虑。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'att2', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我认为对方的停顿反映了他真实的犹豫状态。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'att3', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我认为对方是故意等待，想看看我会不会主动降价。', type:'likert', labs:['完全不同意','完全同意'] },
+
+  // 谈判焦虑
+  { id:'anx0', inst:'（1 = 完全没有，7 = 非常强烈）',
+    q:'我感到紧张。', type:'likert', labs:['完全没有','非常强烈'] },
+  { id:'anx1', inst:'（1 = 完全没有，7 = 非常强烈）',
+    q:'我感到焦虑不安。', type:'likert', labs:['完全没有','非常强烈'] },
+  { id:'anx2', inst:'（1 = 完全没有，7 = 非常强烈）',
+    q:'我担心谈判会失败。', type:'likert', labs:['完全没有','非常强烈'] },
+  { id:'anx3', inst:'（1 = 完全没有，7 = 非常强烈）',
+    q:'我感到不确定，不知道对方会怎么回应。', type:'likert', labs:['完全没有','非常强烈'] },
+  { id:'anx4', inst:'（1 = 完全没有，7 = 非常强烈）',
+    q:'我感到有压力。', type:'likert', labs:['完全没有','非常强烈'] },
+
+  // 损失框架
+  { id:'frm0', inst:'（1 = 完全符合左侧，7 = 完全符合右侧）',
+    q:'', type:'semantic', left:'我主要在想「如果成交，我能得到多少钱」', right:'我主要在想「如果谈崩，我会损失这笔交易」' },
+  { id:'frm1', inst:'（1 = 完全符合左侧，7 = 完全符合右侧）',
+    q:'', type:'semantic', left:'我把这次谈判看作一个获益机会', right:'我把这次谈判看作一个避免损失的机会' },
+  { id:'frm2', inst:'（1 = 完全符合左侧，7 = 完全符合右侧）',
+    q:'', type:'semantic', left:'我更关注最终能卖多少钱', right:'我更担心这笔交易会黄' },
+
+  // 竞争威胁
+  { id:'thr0', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我担心对方会去找其他卖家。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'thr1', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我认为对方有其他的购买选择。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'thr2', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我感到如果不让步，对方可能不会回来。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'thr3', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我觉得自己需要抓住这个买家，否则很难再找到。', type:'likert', labs:['完全不同意','完全同意'] },
+
+  // 结果：工具性价值
+  { id:'svi_i0', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我对本次谈判的结果感到满意。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'svi_i1', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我认为最终价格对我来说是公平的。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'svi_i2', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我觉得自己得到了应有的价格。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'svi_i3', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'总体而言，本次谈判在经济上对我是有利的。', type:'likert', labs:['完全不同意','完全同意'] },
+
+  // 结果：过程体验
+  { id:'svi_p0', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我觉得本次谈判过程是令人愉快的。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'svi_p1', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我对自己在谈判中的表现感到满意。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'svi_p2', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我认为整个谈判过程是顺畅的。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'svi_p3', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我觉得谈判中双方都得到了尊重。', type:'likert', labs:['完全不同意','完全同意'] },
+
+  // 议价能力
+  { id:'bar0', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'在这次谈判中，我感觉自己处于有利地位。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'bar1', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我觉得我有足够的筹码来要求更高的价格。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'bar2', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我认为对方比我更需要这次交易。', type:'likert', labs:['完全不同意','完全同意'] },
+  { id:'bar3', inst:'（1 = 完全不同意，7 = 完全同意）',
+    q:'我感到自己在谈判中掌握主动权。', type:'likert', labs:['完全不同意','完全同意'] },
+
+  // 背景变量
+  { id:'demo_age', inst:'以下问题用于研究背景分析，所有信息完全匿名。',
+    q:'您的年龄是？', type:'number', placeholder:'请输入年龄', min:16, max:99 },
+  { id:'demo_gender', inst:'',
+    q:'您的性别是？', type:'radio', opts:['男','女','其他','不愿透露'], vals:['male','female','other','prefer_not'] },
+  { id:'demo_exp', inst:'',
+    q:'过去一年内您是否有过二手商品买卖经历？', type:'radio', opts:['有','没有'], vals:['yes','no'] },
+  { id:'demo_role', inst:'',
+    q:'如果有，主要是作为买方还是卖方？（无经历可选"不适用"）', type:'radio', opts:['买方居多','卖方居多','各占一半','不适用'], vals:['buyer','seller','both','na'] },
+  { id:'demo_bargain', inst:'',
+    q:'您平时在网上购物时是否会主动与卖家议价？', type:'radio', opts:['从不','偶尔','经常','总是'], vals:['never','sometimes','often','always'] },
+
+  // 注意力检验
+  { id:'attention', inst:'为确保数据质量，请认真阅读题目后作答。',
+    q:'为了确认您在认真作答，请在这道题选择数字「4」。', type:'likert', labs:['1','7'] },
+
+  // 漏斗提问
+  { id:'fnl1', inst:'最后几个问题，请放心作答，不影响您的奖励。',
+    q:'您认为这个实验主要在研究什么？（请简要描述）', type:'text', rows:3, placeholder:'请用一两句话描述您的想法…' },
+  { id:'fnl2', inst:'',
+    q:'在谈判过程中，您是否注意到了什么特别的地方？', type:'text_optional', rows:3, placeholder:'请描述您注意到的任何事情，若无特别之处可填"无"…' },
+  { id:'fnl3', inst:'',
+    q:'您是否认为对方的回复时间对您的决策产生了影响？', type:'radio', opts:['是','否','不确定'], vals:['yes','no','unsure'] },
+];
+
+// ─── Survey engine ────────────────────────────────────────────────────────
+let sqIdx = 0;
+let sqPending = null;
+
+function startSurvey() { sqIdx = 0; goTo('survey'); renderQ(); }
+
+function renderQ() {
+  const q = QS[sqIdx];
+  sqPending = null;
+  const total = QS.length;
+
+  document.getElementById('sq-cur').textContent = sqIdx + 1;
+
+  // update progress inside survey (steps 4–7)
+  const sp = 4 + Math.round((sqIdx / total) * 3);
+  document.getElementById('progress-fill').style.width = (sp/8*100) + '%';
+  document.getElementById('progress-step').textContent = sp + ' / 8';
+
+  const instEl = document.getElementById('sq-inst');
+  instEl.textContent = q.inst || '';
+  instEl.style.display = q.inst ? 'block' : 'none';
+  document.getElementById('sq-q').textContent = q.q || '';
+
+  const w = document.getElementById('sq-widget');
+  w.innerHTML = '';
+  const btn = document.getElementById('sq-next');
+  btn.classList.remove('show');
+  btn.textContent = sqIdx < QS.length - 1 ? '下一题' : '提交问卷';
+
+  if (q.type === 'likert') {
+    const wrap = document.createElement('div'); wrap.className = 'likert-wrap';
+    const labRow = document.createElement('div'); labRow.className = 'likert-labels';
+    labRow.innerHTML = `<span>${q.labs[0]}</span><span>${q.labs[1]}</span>`;
+    const btnRow = document.createElement('div'); btnRow.className = 'likert-options';
+    for (let v = 1; v <= 7; v++) {
+      const b = document.createElement('button'); b.className = 'likert-btn'; b.textContent = v;
+      b.onclick = function() {
+        btnRow.querySelectorAll('.likert-btn').forEach(x => x.classList.remove('selected'));
+        this.classList.add('selected'); sqPending = v; btn.classList.add('show');
+      };
+      btnRow.appendChild(b);
+    }
+    wrap.appendChild(labRow); wrap.appendChild(btnRow); w.appendChild(wrap);
+
+  } else if (q.type === 'semantic') {
+    const cols = document.createElement('div'); cols.className = 'semantic-cols';
+
+    // Two pole cards side by side
+    const poles = document.createElement('div'); poles.className = 'semantic-poles';
+    const lDiv = document.createElement('div'); lDiv.className = 'semantic-pole left';
+    lDiv.innerHTML = q.left;
+    const rDiv = document.createElement('div'); rDiv.className = 'semantic-pole right';
+    rDiv.innerHTML = q.right;
+    poles.appendChild(lDiv); poles.appendChild(rDiv);
+
+    // Scale buttons
+    const bWrap = document.createElement('div'); bWrap.style.display = 'flex'; bWrap.style.flexDirection = 'column'; bWrap.style.gap = '6px';
+    const bRow = document.createElement('div'); bRow.className = 'semantic-options';
+    for (let v = 1; v <= 7; v++) {
+      const b = document.createElement('button'); b.className = 'semantic-btn'; b.textContent = v;
+      b.onclick = function() {
+        bRow.querySelectorAll('.semantic-btn').forEach(x => x.classList.remove('selected'));
+        this.classList.add('selected'); sqPending = v; btn.classList.add('show');
+      };
+      bRow.appendChild(b);
+    }
+    const scaleLabels = document.createElement('div'); scaleLabels.className = 'semantic-scale-labels';
+    scaleLabels.innerHTML = '<span>← 完全符合左侧</span><span>完全符合右侧 →</span>';
+    bWrap.appendChild(bRow); bWrap.appendChild(scaleLabels);
+
+    cols.appendChild(poles); cols.appendChild(bWrap);
+    w.appendChild(cols);
+
+  } else if (q.type === 'radio') {
+    const wrap = document.createElement('div'); wrap.className = 'radio-options';
+    q.opts.forEach((opt, i) => {
+      const lbl = document.createElement('label'); lbl.className = 'radio-opt';
+      const inp = document.createElement('input'); inp.type = 'radio'; inp.name = 'sqr_' + sqIdx;
+      inp.value = q.vals ? q.vals[i] : opt;
+      inp.onchange = function() {
+        wrap.querySelectorAll('.radio-opt').forEach(o => o.classList.remove('selected'));
+        lbl.classList.add('selected'); sqPending = this.value; btn.classList.add('show');
+      };
+      lbl.appendChild(inp); lbl.appendChild(document.createTextNode(opt)); wrap.appendChild(lbl);
+    });
+    w.appendChild(wrap);
+
+  } else if (q.type === 'text_optional') {
+    const wrap = document.createElement('div');
+    const ta = document.createElement('textarea'); ta.className = 'text-input';
+    ta.rows = q.rows || 3; ta.placeholder = q.placeholder || '';
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:12px;color:var(--text-hint);margin-top:6px;';
+    hint.textContent = '若无特别之处，可直接填写"无"';
+    ta.oninput = function() {
+      sqPending = this.value;
+      if (this.value.trim().length > 0) btn.classList.add('show');
+      else btn.classList.remove('show');
+    };
+    wrap.appendChild(ta); wrap.appendChild(hint);
+    w.appendChild(wrap);
+
+  } else if (q.type === 'text') {
+    const wrap = document.createElement('div');
+    const ta = document.createElement('textarea'); ta.className = 'text-input';
+    ta.rows = q.rows || 3; ta.placeholder = q.placeholder || '';
+    const counter = document.createElement('div');
+    counter.style.cssText = 'font-size:12px;color:var(--text-hint);margin-top:6px;';
+    counter.textContent = '至少需要输入 15 个字';
+    ta.oninput = function() {
+      const len = this.value.trim().length;
+      sqPending = this.value;
+      if (len >= 15) {
+        counter.textContent = `已输入 ${len} 个字`;
+        counter.style.color = 'var(--text-hint)';
+        btn.classList.add('show');
+      } else {
+        counter.textContent = `还需输入 ${15 - len} 个字`;
+        counter.style.color = 'var(--danger)';
+        btn.classList.remove('show');
+      }
+    };
+    wrap.appendChild(ta); wrap.appendChild(counter);
+    w.appendChild(wrap);
+
+  } else if (q.type === 'number') {
+    const inp = document.createElement('input'); inp.type = 'number'; inp.className = 'number-input';
+    inp.placeholder = q.placeholder || '';
+    inp.min = '0';
+    inp.addEventListener('input', function() {
+      if (this.value < 0 || this.value === '-') this.value = '';
+      const v = parseInt(this.value);
+      if (!isNaN(v) && v > 0) { sqPending = v; btn.classList.add('show'); }
+      else { sqPending = null; btn.classList.remove('show'); }
+    });
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault();
+    });
+    w.appendChild(inp);
+  }
+}
+
+function sqNext() {
+  if (sqPending === null || sqPending === undefined) return;
+  S.answers[QS[sqIdx].id] = sqPending;
+  sqIdx++;
+
+  // 跳题逻辑：第32题（demo_exp）回答"没有"，跳过第33题（demo_role）
+  if (sqIdx < QS.length && QS[sqIdx].id === 'demo_role' && S.answers['demo_exp'] === 'no') {
+    S.answers['demo_role'] = 'na'; // 自动记为不适用
+    sqIdx++;
+  }
+
+  if (sqIdx >= QS.length) finalize();
+  else { renderQ(); window.scrollTo({ top:0, behavior:'smooth' }); }
+}
+
+// ─── Finalize ─────────────────────────────────────────────────────────────
+function finalize() {
+  S.timestamps.end = Date.now();
+  const txt = ((S.answers.fnl1||'') + (S.answers.fnl2||'')).toLowerCase();
+  S.awareOfManipulation = ['等待','延迟','时间','慢','拖延','故意','停顿','网络'].some(k => txt.includes(k));
+
+  const price = S.finalPrice;
+  const dealt = price !== null && price !== undefined;
+  const bonus = dealt ? Math.min(Math.floor((price - 700) / 100), 3) : 0;
+  const total = 3 + bonus;
+  document.getElementById('end-price').textContent = dealt ? '¥' + price : '未成交';
+  document.getElementById('end-reward').textContent = dealt
+    ? `基础奖励 ¥3 + 绩效奖励 ¥${bonus} = 共 ¥${total}`
+    : '基础奖励 ¥3（未成交，无绩效奖励）';
+
+  const out = {
+    participantId: 'P_' + Date.now(),
+    condition: S.condition,
+    conditionLabel: COND_LABEL[S.condition],
+    actualDelayMs: DELAY_MS[S.condition],
+    bids: { r1: S.r1, r2: S.r2, r3: S.r3 },
+    finalPrice: dealt ? price : null,
+    dealt,
+    reward: { base: 3, bonus, total },
+    answers: S.answers,
+    attentionPassed: S.answers['attention'] === 4,
+    awareOfManipulation: S.awareOfManipulation,
+    timestamps: S.timestamps,
+    durationMinutes: Math.round((S.timestamps.end - S.timestamps.start) / 60000 * 10) / 10
+  };
+  S.exportData = out;
+  document.getElementById('data-preview').textContent = JSON.stringify(out, null, 2);
+  goTo('end');
+}
+
+function downloadData() {
+  const blob = new Blob([JSON.stringify(S.exportData, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = 'negotiation_data_' + S.exportData.participantId + '.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ─── Consent button ───────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('consent-btn');
+  var chk = document.getElementById('consent-check');
+  btn.style.opacity = '0.35';
+  btn.style.cursor = 'not-allowed';
+  chk.addEventListener('change', function() {
+    btn.style.opacity = this.checked ? '1' : '0.35';
+    btn.style.cursor = this.checked ? 'pointer' : 'not-allowed';
+  });
+  btn.addEventListener('click', function() {
+    if (document.getElementById('consent-check').checked) goTo('instructions');
+  });
+});
+</script>
+</body>
+</html>
